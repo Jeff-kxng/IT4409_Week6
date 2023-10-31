@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>List of Blogs</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #fffaf0;
+            margin: 0;
+            padding: 0;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: #fff;
+        }
+
+        th, td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .add-button, .search-input {
+            text-align: center;
+            padding: 10px;
+        }
+
+        .add-button button {
+            background-color: #4caf50;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            padding: 8px 16px;
+        }
+
+        .search-input input {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            width: 100%;
+        }
+
+        .image {
+            width: 100px;
+            height: 100px;
+        }
+
+        dialog {
+            width: 400px;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        dialog h2 {
+            margin-top: 0;
+        }
+
+        input, textarea {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            box-sizing: border-box;
+        }
+
+        button {
+            padding: 8px 16px;
+            background-color: #4caf50;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button:not(:last-child) {
+            margin-right: 10px;
+        }
+
+        button[style="background-color: red"] {
+            background-color: red;
+        }
+    </style>
+</head>
+<body>
+<h1>List of Blogs</h1>
+
+<div class="student-info">
+    <div><strong>ID Student:</strong> 20211005</div>
+    <div><strong>Full Name:</strong> Sok Sokong</div>
+</div>
+
+<div class="add-button">
+    <button onclick="openAddModal()">Add Blog</button>
+</div>
+
+<div class="search-input">
+    <input
+            type="text"
+            id="searchInput"
+            placeholder="Search by title"
+            oninput="searchBlog()"
+    />
+</div>
+
+<table id="blogTable">
+    <tr>
+        <th>Title</th>
+        <th>Content</th>
+        <th>Image</th>
+        <th>Email</th>
+        <th>Created Date</th>
+        <th>Action</th>
+    </tr>
+</table>
+
+<dialog id="addBlogModal">
+    <h2>Create a New Blog</h2>
+    <input type="text" id="titleInput" placeholder="Title" /><br />
+    <textarea id="bodyInput" placeholder="Content"></textarea><br />
+    <input type="text" id="imageInput" placeholder="Image URL" /><br />
+    <input type="text" id="emailInput" placeholder="Email" /><br />
+    <button onclick="saveNewBlog()">Save</button>
+    <button style="background-color: red" onclick="closeAddModal()">Close</button>
+</dialog>
+
+<dialog id="editBlogModal">
+    <h2>Update Blog</h2>
+    <input type="text" id="titleEdit" placeholder="Title" /><br />
+    <textarea id="bodyEdit" placeholder="Content"></textarea><br />
+    <input type="text" id="imageEdit" placeholder="Image URL" /><br />
+    <input type="text" id="emailEdit" placeholder="Email" /><br />
+    <button onclick="saveEditBlog()">Save</button>
+    <button style="background-color: red" onclick="closeEditModal()">Close</button>
+</dialog>
+
+<dialog id="successMessage">
+    <h2>Success</h2>
+    <p>The operation was successful.</p>
+    <button onclick="closeSuccessMessage()">Close</button>
+</dialog>
+
+<dialog id="errorMessage">
+    <h2>Error</h2>
+    <p id="errorText">An error occurred.</p>
+    <button onclick="closeErrorMessage()">Close</button>
+</dialog>
+
+<script>
+    let blogs = [];
+    let currentBlog = null;
+    window.onload = async function () {
+        const res = await fetch("http://localhost:8000/api/blogs");
+        const data = await res.json();
+        blogs = data.data.filter((item) => item?.title !== undefined);
+        displayBlogs(blogs);
+    };
+
+    function formatDateTime(dateStr) {
+        const options = {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+        };
+        const date = new Date(dateStr);
+        return date.toLocaleString("en-US", options).replace(",", "").replace(/:\d+ /, " ");
+    }
+
+    function displayBlogs(blogs) {
+        let table = document.getElementById("blogTable");
+
+        while (table.rows.length > 1) {
+            table.deleteRow(1);
+        }
+
+        for (let i = 0; i < blogs.length; i++) {
+            let blog = blogs[i];
+            let row = table.insertRow(-1);
+
+            let titleCell = row.insertCell(0);
+            titleCell.innerHTML = blog.title;
+
+            let contentCell = row.insertCell(1);
+            contentCell.innerHTML = blog.content;
+
+            let imageCell = row.insertCell(2);
+            imageCell.innerHTML = `<img class="image" src="${blog.image}" alt="${blog.image}" />`;
+
+            let emailCell = row.insertCell(3);
+            emailCell.innerHTML = blog.email; // Added Email
+
+            let createdAtCell = row.insertCell(4);
+            createdAtCell.innerHTML = formatDateTime(blog.createdAt);
+
+            let actionCell = row.insertCell(5);
+            actionCell.innerHTML =
+                '<button onclick="editBlog(' + i + ')">Edit</button> <button onclick="deleteBlog(' + i + ')">Delete</button>';
+        }
+    }
+
+    function openAddModal() {
+        let modal = document.getElementById("addBlogModal");
+        document.getElementById("titleInput").value = "";
+        document.getElementById("bodyInput").value = "";
+        document.getElementById("imageInput").value = "";
+        document.getElementById("emailInput").value = ""; // Clear Email input
+        modal.showModal();
+    }
+
+    function closeAddModal() {
+        let modal = document.getElementById("addBlogModal");
+        modal.close();
+    }
+
+    function saveNewBlog() {
+        let title = document.getElementById("titleInput").value;
+        let content = document.getElementById("bodyInput").value;
+        let image = document.getElementById("imageInput").value;
+        let email = document.getElementById("emailInput").value;
+
+        let newBlog = {
+            title: title,
+            content: content,
+            image: image,
+            email: email, // Include Email
+        };
+
+        fetch("http://localhost:8000/api/blogs", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(newBlog),
+        })
+            .then((response) => {
+                if (response.ok) {
+                    return response.json(); // Successful response
+                } else {
+                    throw new Error("Failed to add the blog. Please check your input and try again.");
+                }
+            })
+            .then((data) => {
+                blogs.push(data.data);
+                displayBlogs(blogs);
+                closeAddModal();
+                openSuccessMessage();
+            })
+            .catch((error) => {
+                console.error("Error:", error.message);
+                openErrorMessage(error.message); // Pass the error message to the error dialog
+            });
+    }
+
+    function editBlog(i) {
+        currentBlog = blogs[i];
+        document.getElementById("titleEdit").value = currentBlog.title;
+        document.getElementById("bodyEdit").value = currentBlog.content;
+        document.getElementById("imageEdit").value = currentBlog.image;
+        document.getElementById("emailEdit").value = currentBlog.email; // Set Email input
+        let modal = document.getElementById("editBlogModal");
+        modal.showModal();
+    }
+
+    function saveEditBlog() {
+        if (currentBlog) {
+            let title = document.getElementById("titleEdit").value;
+            let content = document.getElementById("bodyEdit").value;
+            let image = document.getElementById("imageEdit").value;
+            let email = document.getElementById("emailEdit").value;
+
+            currentBlog.title = title;
+            currentBlog.content = content;
+            currentBlog.image = image;
+            currentBlog.email = email; // Update Email
+
+            fetch(`http://localhost:8000/api/blogs/${currentBlog._id}`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(currentBlog),
+            })
+                .then((response) => response.json())
+                .then(() => {
+                    displayBlogs(blogs);
+                    closeEditModal();
+                    openSuccessMessage();
+                })
+                .catch((error) => {
+                    console.error("Error:", error.message);
+                    openErrorMessage(error.message);
+                });
+        }
+    }
+
+    function closeEditModal() {
+        let modal = document.getElementById("editBlogModal");
+        modal.close();
+    }
+
+    function deleteBlog(i) {
+        const blogId = blogs[i]._id;
+        fetch(`http://localhost:8000/api/blogs/${blogId}`, {
+            method: "DELETE",
+        })
+            .then((response) => response.json())
+            .then(() => {
+                blogs.splice(i, 1);
+                displayBlogs(blogs);
+                openSuccessMessage();
+            })
+            .catch((error) => {
+                console.error("Error:", error.message);
+                openErrorMessage(error.message);
+            });
+    }
+
+    function searchBlog() {
+        const searchInput = document.getElementById("searchInput");
+        const searchTerm = searchInput.value.toLowerCase();
+
+        const filteredBlogs = blogs.filter((blog) => {
+            return blog.title.toLowerCase().includes(searchTerm);
+        });
+
+        displayBlogs(filteredBlogs);
+    }
+
+    function openSuccessMessage() {
+        let modal = document.getElementById("successMessage");
+        modal.showModal();
+    }
+
+    function closeSuccessMessage() {
+        let modal = document.getElementById("successMessage");
+        modal.close();
+    }
+
+    function openErrorMessage(errorMessage) {
+        let modal = document.getElementById("errorMessage");
+        document.getElementById("errorText").textContent = errorMessage;
+        modal.showModal();
+    }
+
+    function closeErrorMessage() {
+        let modal = document.getElementById("errorMessage");
+        modal.close();
+    }
+</script>
+</body>
+</html>
